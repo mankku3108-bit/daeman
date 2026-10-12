@@ -39,6 +39,7 @@ Vercel에서는 로컬 전용 `server.mjs`를 실행하지 않는다. `vercel.js
 & 'C:/Users/A/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe' tests/browser.test.mjs
 & 'C:/Users/A/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe' tests/epic2-browser.test.mjs
 & 'C:/Users/A/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe' tests/deployment-browser.mjs
+& 'C:/Users/A/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe' tests/deployment-live.mjs
 ```
 
 브라우저 검사는 설치된 Edge와 이 기기의 번들 Playwright를 사용하며 별도의 검사용 프로필에서 실행한다. 검사 전용 자료는 사용자 테스트 브라우저와 분리된다. EPIC 2 결과는 `tests/results/epic2-browser.json`, EPIC 1 회귀 결과는 `tests/results/epic1-regression.json`에 기록했다. 다른 환경에서는 `CAFE_PLAYWRIGHT` 환경 변수에 Playwright 모듈 경로를 지정할 수 있다.

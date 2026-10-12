@@ -1,0 +1,40 @@
+{
+  "url": "https://daeman.vercel.app",
+  "checkedAt": "2026-10-12T06:39:00.932Z",
+  "status": "pass",
+  "pageStatus": 200,
+  "responses": [
+    {
+      "route": "/app/app.mjs",
+      "status": 200,
+      "contentType": "text/javascript; charset=utf-8"
+    },
+    {
+      "route": "/app/core.mjs",
+      "status": 200,
+      "contentType": "text/javascript; charset=utf-8"
+    },
+    {
+      "route": "/app/storage.mjs",
+      "status": 200,
+      "contentType": "text/javascript; charset=utf-8"
+    },
+    {
+      "route": "/app/style.css",
+      "status": 200,
+      "contentType": "text/css; charset=utf-8"
+    },
+    {
+      "route": "/favicon.svg",
+      "status": 200,
+      "contentType": "image/svg+xml"
+    },
+    {
+      "route": "/data/initial.json",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8"
+    }
+  ],
+  "expectedProfit": 6414713,
+  "consoleErrors": []
+}

@@ -1,0 +1,95 @@
+{
+  "browser": "Microsoft Edge",
+  "version": "155.0.4283.45",
+  "results": [
+    {
+      "name": "B01 실제 초기 반영·완료 기간·화면 합계",
+      "status": "pass",
+      "ms": 1158,
+      "detail": {
+        "startupMs": 291,
+        "net": 13968930,
+        "contributionDisplay": 10212723
+      }
+    },
+    {
+      "name": "B02 실제 IndexedDB: 최초 반영 한 번·거래 중단·자료판 충돌·원본 보존",
+      "status": "pass",
+      "ms": 211,
+      "detail": {
+        "loads": 1,
+        "firstRevision": 0,
+        "secondRevision": 0,
+        "aborted": true,
+        "abortKeptOld": true,
+        "conflict": true,
+        "conflictKeptNew": true
+      }
+    },
+    {
+      "name": "B03 입력 미리보기·과다 할인 차단·취소 시 저장 없음",
+      "status": "pass",
+      "ms": 2535
+    },
+    {
+      "name": "B04 판매 실제 저장·잠정 구분·재접속·중복 클릭",
+      "status": "pass",
+      "ms": 4520,
+      "detail": {
+        "saleId": "S-5a243c67-cf07-492c-9b05-7094d90703ba"
+      }
+    },
+    {
+      "name": "B05 같은 날짜·메뉴·채널 중복 저장 차단",
+      "status": "pass",
+      "ms": 1796
+    },
+    {
+      "name": "B06 실제 마감과 메뉴 수익성 연결",
+      "status": "pass",
+      "ms": 382
+    },
+    {
+      "name": "B07 채널·수량 수정과 ID 유지·재마감",
+      "status": "pass",
+      "ms": 2171
+    },
+    {
+      "name": "B08 실제 두 탭 충돌·입력 유지·창 안에서 최신 자료 읽기",
+      "status": "pass",
+      "ms": 5343
+    },
+    {
+      "name": "B09 삭제 취소·실제 삭제·재접속·비용/실측 보호",
+      "status": "pass",
+      "ms": 5404
+    },
+    {
+      "name": "B10 판매 0 확인·미래 마감 차단",
+      "status": "pass",
+      "ms": 1634
+    },
+    {
+      "name": "B11 휴무일 전환 확인·취소 보호",
+      "status": "pass",
+      "ms": 1806
+    },
+    {
+      "name": "B12 재료 부족 경고·실제 저장 후 사용자 입력 보존",
+      "status": "pass",
+      "ms": 2028
+    },
+    {
+      "name": "B13 모바일 화면·입력창과 렌더 오류",
+      "status": "pass",
+      "ms": 668
+    },
+    {
+      "name": "B14 원본 문서·파일 노출 방지",
+      "status": "pass",
+      "ms": 49
+    }
+  ],
+  "failures": [],
+  "consoleErrors": []
+}

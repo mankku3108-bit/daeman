@@ -225,11 +225,55 @@ export function validateData(data) {
   for(const r of data.recipes)if(!menuIds.has(r.menu_id)||!matIds.has(r.material_id)||scaled(r.quantity)<0n)fail('레시피 연결 오류');
   for(const p of data.price_history)if(!matIds.has(p.material_id)||!isDate(p.effective_date)||scaled(p.pack_quantity)<=0n||scaled(p.pack_price)<0n)fail('가격이력 오류');
   for(const d of data.calendar)if(!isDate(d.date)||typeof d.record_complete!=='boolean'||typeof d.is_open!=='boolean')fail('영업달력 오류');
-  for(const e of data.expenses)if(!isDate(e.date)||scaled(e.amount)<0n)fail(`${e.expense_id}: 비용 오류`);
+  for(const e of data.expenses)if(!isDate(e.date)||!expenseCategories(data).includes(e.category)||scaled(e.amount)<0n)fail(`${e.expense_id}: 비용 오류`);
   for(const e of [...data.opening_inventory,...data.inventory_events]){
     const mat=data.materials.find(m=>m.material_id===e.material_id);
     if(!mat||mat.unit!==e.unit||!isDate(e.date))fail('재고 재료·단위·날짜 오류');scaled(e.quantity);
     if(e.counted_quantity!=null&&scaled(e.counted_quantity)<0n)fail('실측수량 오류');
   }
   return true;
+}
+
+export function expenseCategories(data) {return [...new Set(data.monthly_expense_plan.map(e=>e.category))].sort();}
+export function buildExpense(data,input,existing=null,today=todayKorea()) {
+  checkDate(input.date,data,today);
+  if(!expenseCategories(data).includes(input.category)) fail('기존 비용항목을 선택하세요.','category');
+  return {...(existing||{}),expense_id:existing?.expense_id||'',date:input.date,category:input.category,
+    amount:integer(input.amount,'비용 금액','amount'),recognition:existing?.recognition??'직접 입력'};
+}
+export function saveExpenseMutation(data,expense,{id='',newId=''}={}) {
+  const old=id?data.expenses.find(e=>e.expense_id===id):null;
+  if(id&&!old) fail('대상 비용을 찾을 수 없습니다. 최신 자료를 불러오세요.');
+  const checked=buildExpense(data,expense,old);
+  const next=structuredClone(data),stored={...checked,expense_id:id||newId};
+  if(!stored.expense_id||(!id&&next.expenses.some(e=>e.expense_id===newId))) fail('비용ID가 중복되거나 없습니다.');
+  if(old)next.expenses[next.expenses.findIndex(e=>e.expense_id===id)]=stored;else next.expenses.push(stored);
+  calendarEntry(next,stored.date).record_complete=false;
+  if(old)calendarEntry(next,old.date).record_complete=false;
+  return next;
+}
+export function deleteExpenseMutation(data,id) {
+  const old=data.expenses.find(e=>e.expense_id===id);if(!old)fail('이미 삭제됐거나 없는 비용 기록입니다.');
+  const next=structuredClone(data);next.expenses=next.expenses.filter(e=>e.expense_id!==id);
+  calendarEntry(next,old.date).record_complete=false;return next;
+}
+export function operatingProfit(data,scope) {
+  const p=periodInfo(data,scope),dates=new Set(p.completed.map(d=>d.date));
+  const sales=aggregate(data,data.sales.filter(s=>inPeriod(s.date,scope))).total;
+  const costs=data.expenses.filter(e=>dates.has(e.date)),issues=[...sales.issues];let expenses=0n;
+  for(const e of costs)try{const amount=scaled(e.amount,'비용');if(amount<0n)fail('비용이 음수입니다.');expenses+=amount;}catch(err){issues.push(`${e.expense_id}: ${err.message}`);}
+  const missing=p.completed.filter(d=>!costs.some(e=>e.date===d.date)).map(d=>d.date);
+  return {sales,expenses,profit:sales.contribution-expenses,issues,missing,known:dates.size>0,
+    pending:data.expenses.filter(e=>inPeriod(e.date,scope)&&!dates.has(e.date)).length};
+}
+export function createBackup(state,now=new Date()) {
+  if(!state||state.schemaVersion!==1||state.calculationVersion!==1||!Number.isSafeInteger(state.revision))fail('저장자료의 버전·자료판을 확인하세요.');
+  validateData(state.data);
+  const data=structuredClone(state.data);
+  if(!data.settings?.minimum_quantities)fail('최소 수량 설정이 없습니다.');
+  const counts=Object.fromEntries(Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,v.length]));
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(now);
+  const get=k=>parts.find(p=>p.type===k).value;
+  return {filename:`prep-cafe-backup_${get('year')}${get('month')}${get('day')}_${get('hour')}${get('minute')}${get('second')}.json`,
+    document:{format:'prep-cafe-backup',schemaVersion:1,calculationVersion:1,exportedAt:now.toISOString(),storeIdentity:data.meta.store_name??data.meta.store??'프렙 카페',sourceMeta:structuredClone(data.meta),revision:state.revision,counts,data}};
 }

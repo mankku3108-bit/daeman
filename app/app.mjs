@@ -1,5 +1,6 @@
 import {money,exactMoney,decimal,percent,todayKorea,lastCompleted,periodInfo,filteredSales,aggregate,
-  buildSale,ensureUniqueSale,saleAmounts,usageForSale,saveSaleMutation,deleteSaleMutation,closeDayMutation,inventoryAt,validateData} from './core.mjs';
+  buildSale,ensureUniqueSale,saleAmounts,usageForSale,saveSaleMutation,deleteSaleMutation,closeDayMutation,inventoryAt,validateData,
+  expenseCategories,buildExpense,saveExpenseMutation,deleteExpenseMutation,operatingProfit,createBackup,scaled} from './core.mjs';
 import {openDatabase,readState,initialize,commitState,ConflictError} from './storage.mjs';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -68,15 +69,20 @@ function renderSales(){
 }
 function render(){
   renderPeriod();
-  const names={dashboard:'종합 대시보드',sales:'판매 관리',profit:'메뉴 수익성'};
-  const titles={dashboard:'기록으로 보는 메뉴의 가치',sales:'판매 기록을 정확하게',profit:'메뉴가 남긴 금액을 한눈에'};
+  const names={dashboard:'종합 대시보드',sales:'판매 관리',profit:'메뉴 수익성',expenses:'비용 관리',pnl:'매장 손익',backup:'자료 백업'};
+  const titles={dashboard:'기록으로 보는 메뉴의 가치',sales:'판매 기록을 정확하게',profit:'메뉴가 남긴 금액을 한눈에',expenses:'운영비를 정확하게',pnl:'판매와 비용이 연결된 손익',backup:'저장된 기록을 안전하게 보관'};
   $('view-name').textContent=names[view];$('page-title').textContent=titles[view];
   $('page-description').textContent=view==='sales'?'판매를 기록하고, 잘못된 내용을 고치고, 하루를 마감하세요.':'판매 기록과 실제 원가로 메뉴가 운영비에 보탠 금액을 확인하세요.';
   for(const button of document.querySelectorAll('[data-view]'))button.classList.toggle('active',button.dataset.view===view);
-  $('sales-section').hidden=view!=='sales';$('profit-section').hidden=view==='sales';
+  $('sales-section').hidden=view!=='sales';$('profit-section').hidden=!['dashboard','profit'].includes(view);
+  $('new-sale').hidden=!['dashboard','sales','profit'].includes(view);
+  $('expenses-section').hidden=view!=='expenses';$('pnl-section').hidden=!['dashboard','pnl'].includes(view);$('backup-section').hidden=view!=='backup';
+  $('summary').hidden=view==='backup';
+  $('page-description').textContent=({expenses:'실제 비용을 기록하고, 변경한 날짜를 다시 마감하세요.',pnl:'마감된 판매와 같은 날짜의 실제 비용으로 계산합니다.',backup:'이 브라우저에 마지막으로 저장한 자료를 파일로 보관하세요.'})[view]||$('page-description').textContent;
   renderSummary(view==='sales'?filteredSales(state.data,scope,filters()):state.data.sales.filter(filteredByPeriod));
-  if(view==='sales')renderSales();else renderProfit();
-  $('save-status').textContent=`저장된 자료 ${state.revision}판 · 판매 ${state.data.sales.length.toLocaleString()}건`;
+  if(view==='sales')renderSales();else if(['dashboard','profit'].includes(view))renderProfit();
+  if(view==='expenses')renderExpenses();if(['dashboard','pnl'].includes(view))renderPnl();
+  $('save-status').textContent=`저장된 자료 ${state.revision}판 · 판매 ${state.data.sales.length.toLocaleString()}건 · 비용 ${state.data.expenses.length.toLocaleString()}건`;
 }
 async function persist(next){
   const committed=await commitState(db,next,state.revision);
@@ -169,7 +175,8 @@ for(const id of ['menu-filter','channel-filter','search'])$(id).addEventListener
 $('prev-page').onclick=()=>{page--;renderSales();};$('next-page').onclick=()=>{page++;renderSales();};
 function closingInfo(){
   const date=$('closing-date').value;const sales=state.data.sales.filter(s=>s.date===date);const d=state.data.calendar.find(d=>d.date===date);
-  $('closing-info').textContent=`판매 집계 ${sales.length}건 · ${d?.record_complete?'이미 마감 완료':'미마감'} · ${d&&!d.is_open?'휴무일':'영업일'}`;
+  const expenses=state.data.expenses.filter(e=>e.date===date);
+  $('closing-info').textContent=`판매 집계 ${sales.length}건 · 비용 ${expenses.length}건${expenses.length?'':' (비용 미입력 · 손익 판정 보류)'} · ${d?.record_complete?'이미 마감 완료':'미마감'} · ${d&&!d.is_open?'휴무일':'영업일'}`;
   $('closing-error').hidden=true;
 }
 $('open-close').onclick=()=>{const dates=state.data.sales.filter(filteredByPeriod).map(s=>s.date).sort();$('closing-date').value=scope.mode==='day'?scope.value:dates.at(-1)||lastCompleted(state.data);closingInfo();$('closing-dialog').showModal();};
@@ -200,9 +207,80 @@ async function boot(){
     db=await openDatabase();state=await initialize(db,async()=>{const response=await fetch('/data/initial.json');if(!response.ok)throw new Error('초기 자료를 읽을 수 없습니다.');return response.json();});
     const options=state.data.menus.map(m=>`<option value="${esc(m.menu_id)}">${esc(m.name)}</option>`).join('');
     $('sale-menu').innerHTML=options;$('menu-filter').insertAdjacentHTML('beforeend',options);
+    const categories=expenseCategories(state.data).map(c=>`<option>${esc(c)}</option>`).join('');
+    $('expense-category').innerHTML=categories;$('expense-filter').insertAdjacentHTML('beforeend',categories);
     scope={mode:'month',value:lastCompleted(state.data).slice(0,7)};
     render();$('workspace').hidden=false;$('open-close').disabled=false;$('reload-data').disabled=false;setStorage('저장 확인됨');
     if(navigator.storage?.persisted)navigator.storage.persisted().then(persisted=>{if(!persisted)$('storage-label').title='브라우저 자료 삭제 시 기록도 삭제됩니다. 같은 프로필과 주소를 사용하세요.';}).catch(()=>{});
   }catch(e){$('boot-error').hidden=false;$('boot-error').textContent=`자료를 열지 못했습니다. ${e.message} 기존 저장자료를 자동으로 지우지 않았습니다.`;setStorage('자료 접근 오류','error');$('open-close').disabled=true;$('reload-data').disabled=true;}
 }
+let expenseId='',expenseOriginal='',expensePage=1;
+function expenseValues(){return Object.fromEntries(new FormData($('expense-form')));}
+function expenseError(message,field=''){
+  $('expense-error').hidden=!message;$('expense-error').textContent=message;
+  for(const c of $('expense-form').elements)c.removeAttribute('aria-invalid');
+  $('expense-form').elements.namedItem(field)?.setAttribute('aria-invalid','true');
+}
+function expenseBusy(value){
+  for(const id of ['save-expense','delete-expense','cancel-expense','close-expense','expense-reload','new-expense','download-backup'])$(id).disabled=value;
+  for(const c of $('expense-form').querySelectorAll('input,select'))c.disabled=value;
+}
+function renderExpenses(){
+  const rows=state.data.expenses.filter(e=>filteredByPeriod(e)&&(!$('expense-filter').value||e.category===$('expense-filter').value)).sort((a,b)=>b.date.localeCompare(a.date)||b.expense_id.localeCompare(a.expense_id));
+  const pages=Math.max(1,Math.ceil(rows.length/pageSize));expensePage=Math.min(expensePage,pages);
+  $('expense-rows').innerHTML=rows.slice((expensePage-1)*pageSize,expensePage*pageSize).map(e=>{
+    const complete=state.data.calendar.find(d=>d.date===e.date)?.record_complete;
+    return `<tr><td>${esc(e.date)}</td><td><strong>${esc(e.category)}</strong><span class="subtext">${esc(e.expense_id)}</span></td><td>${money(scaled(e.amount))}</td><td>${esc(e.recognition)}</td><td><span class="state-pill ${complete?'complete':'pending'}">${complete?'마감 완료':'잠정'}</span></td><td><button class="row-action" data-expense="edit" data-id="${esc(e.expense_id)}">수정</button><button class="row-action delete" data-expense="delete" data-id="${esc(e.expense_id)}">삭제</button></td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">이 기간·항목의 비용 기록이 없습니다.</td></tr>';
+  $('expense-page-info').textContent=`비용 ${rows.length.toLocaleString()}건 · ${expensePage} / ${pages} 페이지`;
+  $('expense-prev').disabled=expensePage===1;$('expense-next').disabled=expensePage===pages;
+}
+function renderPnl(){
+  const p=operatingProfit(state.data,scope),bad=p.issues.length>0;
+  $('pnl-status').textContent=bad?`계산 불가: ${p.issues[0]}`:!p.known?'완료 실적 없음. 미마감 날짜를 매출·비용 0으로 채우지 않습니다.':p.missing.length?`비용 미입력 ${p.missing.length}일 (${p.missing.join(', ')}) · 손익 판정 보류. 입력된 비용 합계만 표시합니다. 실제 비용이 0인 날도 0원 기록을 입력하세요.`:`완료 기록 기준 · 잠정 비용 ${p.pending}건 제외 · 순매출 − 판매 관련 비용 − 운영비`;
+  const valid=p.known&&!bad,profitValid=valid&&!p.missing.length;
+  const rows=[['순매출',p.sales.net],['식재료비',p.sales.food],['포장비',p.sales.packaging],['실제 결제수수료',p.sales.fee],['메뉴 공헌이익',p.sales.contribution],['실제 운영비',p.expenses],['매장 손익',p.profit]];
+  $('pnl-rows').innerHTML=rows.map(([label,n])=>`<tr><td><strong>${label}</strong></td><td class="${n<0n?'amount-negative':''}">${label==='매장 손익'&&!profitValid?(p.known?'판정 보류':'—'):valid?money(n):bad?'계산 불가':'—'}</td></tr>`).join('')+`<tr><td>손익률</td><td>${profitValid?percent(p.profit,p.sales.net):'—'}</td></tr>`;
+}
+function openExpense(id=''){
+  if(busy)return;const old=id?state.data.expenses.find(e=>e.expense_id===id):null;
+  if(id&&!old){notice('대상 비용을 찾을 수 없습니다.','error');return;}
+  expenseId=id;const values=old||{date:scope.mode==='day'?scope.value:lastCompleted(state.data),category:expenseCategories(state.data)[0],amount:''};
+  for(const k of ['date','category','amount'])$('expense-form').elements.namedItem(k).value=values[k];
+  $('expense-title').textContent=id?'비용 기록 수정':'비용 기록 추가';$('delete-expense').hidden=!id;$('expense-reload').hidden=true;expenseError('');
+  expenseOriginal=JSON.stringify(expenseValues());$('expense-dialog').showModal();
+}
+async function cancelExpense(){if(busy)return;if(JSON.stringify(expenseValues())!==expenseOriginal&&!await ask('입력한 변경 내용을 저장하지 않고 닫을까요?','입력 내용 버리기'))return;$('expense-dialog').close();expenseId='';}
+async function deleteExpense(id){
+  if(busy)return;const old=state.data.expenses.find(e=>e.expense_id===id);if(!old){notice('이미 삭제됐거나 없는 비용입니다.','error');return;}
+  if(!await ask(`${old.date} · ${old.category} · ${old.amount.toLocaleString()}원\n이 비용을 삭제할까요? 해당 날짜는 다시 마감해야 합니다.`,'비용 기록 삭제'))return;
+  setBusy(true);expenseBusy(true);
+  try{await persist(deleteExpenseMutation(state.data,id));$('expense-dialog').close();notice('비용을 삭제했습니다. 해당 날짜를 다시 마감하세요.');}
+  catch(err){if($('expense-dialog').open){expenseError(err.message);$('expense-reload').hidden=!(err instanceof ConflictError);}else notice(err.message,'error');setStorage('저장 실패','error');}
+  finally{setBusy(false);expenseBusy(false);}
+}
+$('new-expense').onclick=()=>openExpense();$('cancel-expense').onclick=cancelExpense;$('close-expense').onclick=cancelExpense;
+$('expense-dialog').oncancel=e=>{e.preventDefault();cancelExpense();};$('delete-expense').onclick=()=>deleteExpense(expenseId);
+$('expense-form').onsubmit=async e=>{
+  e.preventDefault();if(busy)return;
+  try{
+    const expense=buildExpense(state.data,expenseValues(),state.data.expenses.find(e=>e.expense_id===expenseId));
+    const next=saveExpenseMutation(state.data,expense,{id:expenseId,newId:'X-'+crypto.randomUUID()});
+    setBusy(true);expenseBusy(true);await persist(next);$('expense-dialog').close();expenseId='';view='expenses';scope={mode:'day',value:expense.date};expensePage=1;$('expense-filter').value='';render();
+    notice('비용을 저장했습니다. 해당 날짜를 다시 마감하세요.');
+  }catch(err){expenseError(err.message,err.field);$('expense-reload').hidden=!(err instanceof ConflictError);setStorage(err instanceof ConflictError?'최신 자료 확인 필요':'저장 실패','error');}
+  finally{setBusy(false);expenseBusy(false);}
+};
+$('expense-reload').onclick=async()=>{if(busy)return;try{const latest=await readState(db);if(!latest)throw new Error('최신 자료를 읽을 수 없습니다.');validateData(latest.data);state=latest;render();expenseError('입력값은 유지했습니다. 최신 기록을 확인한 뒤 다시 저장하세요.');$('expense-reload').hidden=true;setStorage('최신 자료 확인됨');}catch(err){expenseError(err.message);}};
+$('expense-rows').onclick=e=>{const b=e.target.closest('[data-expense]');if(!b||busy)return;b.dataset.expense==='edit'?openExpense(b.dataset.id):deleteExpense(b.dataset.id);};
+$('expense-filter').onchange=()=>{expensePage=1;renderExpenses();};$('expense-prev').onclick=()=>{expensePage--;renderExpenses();};$('expense-next').onclick=()=>{expensePage++;renderExpenses();};
+$('download-backup').onclick=async()=>{
+  if(busy)return;setBusy(true);expenseBusy(true);let url;
+  try{
+    const saved=await readState(db),backup=createBackup(saved);const blob=new Blob([JSON.stringify(backup.document,null,2)],{type:'application/json;charset=utf-8'});
+    url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=backup.filename;document.body.append(a);a.click();a.remove();
+    $('backup-status').textContent=`백업 파일 내려받기 시작: ${backup.filename} · 저장 자료 ${saved.revision}판 · 미저장 입력 제외. 내려받은 파일을 확인해 보관하세요.`;
+  }catch(err){$('backup-status').textContent=`백업 생성 실패: ${err.message} 기존 자료는 변경하지 않았습니다.`;}
+  finally{if(url)setTimeout(()=>URL.revokeObjectURL(url),10000);setBusy(false);expenseBusy(false);}
+};
 boot();

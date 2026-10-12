@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>프렙 카페 · 판매와 메뉴 수익성</title>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/app/style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="/" aria-label="프렙 카페 홈"><span class="brand-icon">P</span><span><strong>프렙 카페</strong><small>매장 운영 기록</small></span></a>
+  <div class="store-tag">본점 · 단일 매장</div>
+  <nav aria-label="주요 메뉴">
+    <button data-view="dashboard" class="nav-item active"><span>▦</span> 종합 대시보드</button>
+    <button data-view="sales" class="nav-item"><span>▤</span> 판매 관리</button>
+    <button data-view="profit" class="nav-item"><span>◔</span> 메뉴 수익성</button>
+  </nav>
+  <div class="sidebar-bottom"><span id="storage-dot" class="dot"></span><div><small>이 브라우저에 저장</small><strong id="storage-label">자료 읽는 중</strong></div></div>
+</aside>
+<div class="shell">
+<header class="topbar"><div class="breadcrumb">매장 운영 <span>/</span> <strong id="view-name">종합 대시보드</strong></div><div class="top-actions"><button id="reload-data" class="quiet" disabled>최신 자료 불러오기</button><button id="open-close" class="primary" disabled>하루 마감 등록</button></div></header>
+<main>
+  <div id="boot-error" class="error-banner" role="alert" hidden></div>
+  <div id="workspace" hidden>
+  <section class="page-heading"><div><span class="eyebrow">PREP CAFE / OPERATIONS</span><h1 id="page-title">기록으로 보는 메뉴의 가치</h1><p id="page-description">판매 기록과 실제 원가로 메뉴가 남긴 금액을 확인하세요.</p></div><button id="new-sale" class="primary large">+ 판매 기록 추가</button></section>
+  <section class="period-bar" aria-label="조회 기간">
+    <div class="segmented"><button id="mode-day" aria-pressed="false">일간 조회</button><button id="mode-month" aria-pressed="true">월간 조회</button></div>
+    <label class="period-input">조회 기간 <input id="period-value" type="month" value="2026-09"></label>
+    <div class="period-status"><strong id="completed-label"></strong><span id="pending-label"></span></div><span class="currency-note">원 · 부가세 제외</span>
+  </section>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <section id="summary" class="summary-grid" aria-label="완료 실적 요약"></section>
+  <section id="sales-section" class="panel" hidden>
+    <div class="panel-heading"><div><h2>판매 기록</h2><p>마감 전 기록은 잠정으로 구분합니다.</p></div><span id="source-count" class="badge"></span></div>
+    <div class="filters"><label>메뉴<select id="menu-filter"><option value="">전체 메뉴</option></select></label><label>채널<select id="channel-filter"><option value="">전체 채널</option><option>매장</option><option>포장</option></select></label><label class="search-label">검색<input id="search" type="search" placeholder="판매ID 또는 메뉴명"></label></div>
+    <div class="table-wrap"><table><thead><tr><th>판매 일자</th><th>메뉴 / 판매ID</th><th>채널</th><th>수량</th><th>단가</th><th>할인</th><th>순매출</th><th>수수료</th><th>공헌이익</th><th>상태</th><th>관리</th></tr></thead><tbody id="sales-rows"></tbody></table></div>
+    <div class="pagination"><span id="page-info"></span><div><button id="prev-page" class="quiet">이전</button><button id="next-page" class="quiet">다음</button></div></div>
+  </section>
+  <section id="profit-section" class="panel">
+    <div class="panel-heading"><div><h2>메뉴별 공헌이익 <span class="heading-note">운영비에 보탠 금액</span></h2><p>임차료·인건비는 메뉴별로 나누지 않습니다.</p></div><span id="menu-count" class="badge"></span></div>
+    <div class="explanation">순매출에서 식재료비·포장비·실제 결제수수료를 뺀 금액입니다. 매장 전체 손익과 다릅니다.</div>
+    <div class="table-wrap"><table><thead><tr><th>메뉴</th><th>채널</th><th>판매수량</th><th>순매출</th><th>식재료비</th><th>포장비</th><th>수수료</th><th>공헌이익</th><th>공헌이익률</th></tr></thead><tbody id="profit-rows"></tbody></table></div>
+  </section>
+  <footer class="page-footer"><span>직접 구성한 가상 매장 자료 · 원본 파일은 변경하지 않습니다.</span><span id="save-status"></span></footer>
+  </div>
+</main>
+</div>
+<dialog id="sale-dialog" aria-labelledby="sale-title">
+  <form id="sale-form" novalidate>
+    <div class="dialog-heading"><div><span class="eyebrow" id="sale-mode">NEW RECORD</span><h2 id="sale-title">판매 기록 추가</h2><p>저장 전에는 실제 기록과 재고가 바뀌지 않습니다.</p></div><button type="button" id="close-sale" class="icon-button" aria-label="판매 입력창 닫기">×</button></div>
+    <div class="dialog-body">
+    <div class="form-grid"><label>판매 일자 <span class="required">*</span><input name="date" id="sale-date" type="date" required></label><label>판매 메뉴 <span class="required">*</span><select name="menu_id" id="sale-menu" required></select></label></div>
+    <fieldset class="channel-box"><legend>판매 채널</legend><label><input type="radio" name="channel" value="매장" checked> 매장 이용 <small>매장 레시피 적용</small></label><label><input type="radio" name="channel" value="포장"> 포장 판매 <small>해당 포장재 함께 반영</small></label></fieldset>
+    <div class="form-grid three"><label>판매 수량 <input name="quantity" id="sale-quantity" type="number" min="1" step="1" value="1" required><span class="quick-quantity"><button type="button" data-add="1">+1</button><button type="button" data-add="5">+5</button><button type="button" data-add="10">+10</button></span></label><label>실제 판매단가 (원)<input name="unit_price" id="sale-price" type="number" min="0" step="1" required></label><label>할인 총액 (원)<input name="discount_amount" id="sale-discount" type="number" min="0" step="1" value="0" required></label></div>
+    <label class="fee-label">실제 결제수수료 (원) <span class="required">*</span><input name="payment_fee" id="sale-fee" type="number" min="0" step="1" required placeholder="실제 금액 입력 · 0원도 입력"><small>이 집계의 총 수수료입니다. 자동 요율을 적용하지 않습니다.</small></label>
+    <div id="sale-error" class="error-banner" role="alert" hidden></div>
+    <section class="preview-box"><h3>저장 전 계산 미리보기</h3><div id="preview-grid" class="preview-grid"></div><p id="cost-explanation"></p></section>
+    <section class="usage-box"><h3>이 판매에 쓰이는 재료</h3><div id="usage-preview"></div></section>
+    </div>
+    <div class="dialog-footer"><button type="button" id="form-delete" class="danger-quiet" hidden>이 기록 삭제</button><div class="footer-actions"><button type="button" id="form-reload" class="quiet" hidden>입력 유지 · 최신 자료 읽기</button><button type="button" id="cancel-sale" class="quiet">취소</button><button type="submit" id="save-sale" class="primary">판매 기록 저장</button></div></div>
+  </form>
+</dialog>
+<dialog id="closing-dialog" aria-labelledby="closing-title"><form id="closing-form" novalidate><div class="dialog-heading"><div><h2 id="closing-title">하루 기록 마감</h2><p>기록 작성을 끝낸 날짜를 완료 실적으로 표시합니다.</p></div><button type="button" id="close-closing" class="icon-button" aria-label="마감창 닫기">×</button></div><div class="dialog-body"><label>마감할 날짜<input id="closing-date" type="date" required></label><p id="closing-info"></p><div id="closing-error" class="error-banner" role="alert" hidden></div><div class="explanation">마감 후에도 수정할 수 있습니다. 수정·삭제하면 해당 날짜를 다시 마감해야 합니다.</div></div><div class="dialog-footer"><button type="button" id="cancel-closing" class="quiet">취소</button><button id="confirm-closing" class="primary" type="submit">이 날짜 마감</button></div></form></dialog>
+<dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-heading"><h2 id="confirm-title">내용 확인</h2></div><div class="dialog-body"><p id="confirm-message"></p></div><div class="dialog-footer"><button id="confirm-cancel" class="quiet">취소</button><button id="confirm-ok" class="primary">확인</button></div></dialog>
+<script type="module" src="/app/app.mjs"></script>
+</body></html>

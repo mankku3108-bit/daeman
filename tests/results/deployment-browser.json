@@ -1,0 +1,24 @@
+{
+  "browser": "Microsoft Edge",
+  "version": "155.0.4283.45",
+  "target": "generated dist (isolated local static host)",
+  "results": [
+    {
+      "name": "D01 공개 도메인 Host에서도 정적 화면 정상 제공",
+      "status": "pass"
+    },
+    {
+      "name": "D02 배포 파일로 부팅·모듈·초기 JSON·손익 표시",
+      "status": "pass"
+    },
+    {
+      "name": "D03 배포 화면 비용 저장·새로고침·백업 실제 내려받기",
+      "status": "pass"
+    },
+    {
+      "name": "D04 작업 문서·원본 엑셀·실행 코드 공개 제외",
+      "status": "pass"
+    }
+  ],
+  "consoleErrors": []
+}

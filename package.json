@@ -2,5 +2,5 @@
   "name": "prep-cafe-operations",
   "private": true,
   "type": "module",
-  "scripts": {"start": "node server.mjs", "test": "node --test tests/core.test.mjs tests/epic2-core.test.mjs"}
+  "scripts": {"start": "node server.mjs", "build": "node build.mjs", "test": "node --test tests/core.test.mjs tests/epic2-core.test.mjs tests/deployment.test.mjs"}
 }
